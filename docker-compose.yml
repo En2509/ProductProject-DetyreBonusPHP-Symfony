@@ -1,0 +1,130 @@
+version: "3.4"
+
+services:
+  php:
+    build:
+      context: .
+      target: app_php
+      args:
+        SYMFONY_VERSION: ${SYMFONY_VERSION:-}
+        STABILITY: ${STABILITY:-stable}
+    container_name: pokemon-php
+    restart: unless-stopped
+    volumes:
+      - php_socket:/var/run/php
+    ports:
+    # TCP
+    - target: 9000
+      published: ${HTTP_PORT:-9000}
+      protocol: tcp
+    # TCP
+    - target: 9009
+      published: ${HTTPS_PORT:-9009}
+      protocol: tcp
+    healthcheck:
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    environment:
+      # Run "composer require symfony/orm-pack" to install and configure Doctrine ORM
+      DATABASE_URL: "mysql://projectuser:ChangeMe123@localhost:3306/projectdb?serverVersion=8.0"
+      # Run "composer require symfony/mercure-bundle" to install and configure the Mercure integration
+#      MERCURE_URL: ${CADDY_MERCURE_URL:-http://caddy/.well-known/mercure}
+      MERCURE_URL: ${CADDY_MERCURE_URL:-http://localhost/.well-known/mercure}
+      MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
+      MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: projectdb
+      MYSQL_USER: projectuser
+      MYSQL_PASSWORD: ChangeMe123
+    networks:
+      - pokemonnet
+
+  caddy:
+    build:
+      context: .
+      target: app_caddy
+    container_name: pokemon-cady-webserver
+    depends_on:
+      - php
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-localhost}
+      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    restart: unless-stopped
+    volumes:
+      - php_socket:/var/run/php
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      # HTTP
+      - target: 80
+        published: ${HTTP_PORT:-80}
+        protocol: tcp
+      # HTTPS
+      - target: 443
+        published: ${HTTPS_PORT:-443}
+        protocol: tcp
+      # HTTP/3
+      - target: 443
+        published: ${HTTP3_PORT:-443}
+        protocol: udp
+      - "2019:2019"
+#      - target: 2019
+#        published: ${HTTP_PORT:-2019}
+#        protocol: tcp
+    networks:
+      - pokemonnet
+
+  database:
+    image: 'mysql:8.0'
+    container_name: pokemon-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: projectdb
+      MYSQL_USER: projectuser
+      MYSQL_PASSWORD: ChangeMe123
+    ports:
+        - "3306:3306"
+        - "33060:33060"
+        - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+#      - ./mysql-data:/var/lib/mysql:cached
+    networks:
+      - pokemonnet
+
+  redis:
+    image: redis:alpine
+    container_name: pokemon-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - pokemonnet
+
+  mailer:
+    image: schickling/mailcatcher
+    container_name: pokemon-mailer
+    ports: 
+      - "1025:1025"
+      - "1080:1080"
+    networks:
+      - pokemonnet
+
+volumes:
+  php_socket:
+  caddy_data:
+  caddy_config:
+
+#Docker Networks
+networks:
+  pokemonnet:
+    driver: bridge
+
+# Mercure is installed as a Caddy module, prevent the Flex recipe from installing another service
+###> symfony/mercure-bundle ###
+###< symfony/mercure-bundle ###

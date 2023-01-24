@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}List of products{% endblock %}
+
+{% block body %}
+    <table class="table">
+        <thead class="thead-dark">
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Name</th>
+            <th scope="col">Description</th>
+            <th scope="col">Price</th>
+            <th scope="col">UnitInStock</th>
+            <th scope="col">Creation Date</th>
+            <th scope="col">Updated Date</th>
+            <th scope="col">Edit</th>
+            <th scope="col">Delete</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for product in product %}
+            <tr id="product_id_{{ product.id }}">
+                <th scope="row">{{ product.id }}</th>
+                <td> {{ product.name }}</td>
+                <td> {{ product.description }}</td>
+                <td> {{ product.price }}</td>
+                <td> {{ product.unitinstock }}</td>
+                <td> {{ product.createdAt | date('H:i:s - l - d/m/Y - T') }}</td>
+                <td> {{ product.updatedAt | date('H:i:s - l - d/m/Y - T') }}</td>
+                <td><a class="btn btn-primary" href="/product/{{ product.id }}/edit" role="button">Edit</a></td>
+                <td><a class="btn btn-primary" href="/product/{{ product.id }}/delete" role="button">Delete</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <a href="/product/create" class="btn btn-secondary" style="float: right">Create new product</a>
+    <a href="/product" class="btn btn-secondary" style="float: right; margin-right: 2px">Homepage</a>
+{% endblock %}
+{% block footer_js %}
+    <script src="{{ asset('js/list.js') }}"></script>
+{% endblock %}
